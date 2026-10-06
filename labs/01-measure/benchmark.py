@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import pathlib
 import statistics
 import sys
@@ -38,7 +39,7 @@ PROMPTS = [
     "When should you use disaggregated prefill/decode serving?",
 ]
 
-BENCH_PORT = 8099  # off the main :8080 so a running server is not disturbed
+BENCH_PORT = int(os.environ.get("LAB_BENCH_PORT", "8099"))  # keep clear of the main server
 
 
 def pct(data: list[float], q: float) -> float:

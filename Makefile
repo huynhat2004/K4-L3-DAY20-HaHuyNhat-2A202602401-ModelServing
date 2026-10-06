@@ -15,7 +15,9 @@ PORT     := $(or $(LAB_SERVER_PORT),8080)
 # job per 4 GB of RAM, capped at the core count, floor of 1.
 CORES     := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 RAM_GB    := $(shell awk '/MemTotal/ {printf "%d", $$2/1048576}' /proc/meminfo 2>/dev/null \
-                     || sysctl -n hw.memsize 2>/dev/null | awk '{printf "%d", $$1/1073741824}' \
+                     || { sysctl -n hw.memsize 2>/dev/null \
+                          || system_profiler SPHardwareDataType 2>/dev/null | awk '/Memory:/ {print $$2 * 1073741824}'; } \
+                        | awk 'NF {printf "%d", $$1/1073741824}' \
                      || echo 8)
 BUILD_JOBS := $(or $(LLAMA_BUILD_JOBS),$(shell \
                  j=$$(( $(RAM_GB) / 4 )); \

@@ -31,6 +31,12 @@ def detect_cpu() -> dict:
     if sys.platform == "darwin":
         rc, out = run(["sysctl", "-n", "machdep.cpu.brand_string"])
         info["model"] = out.strip() if rc == 0 and out.strip() else "Apple Silicon"
+        if info["model"] == "Apple Silicon":
+            rc, out = run(["system_profiler", "SPHardwareDataType"])
+            for line in out.splitlines() if rc == 0 else ():
+                if line.strip().startswith("Chip:"):
+                    info["model"] = line.split(":", 1)[1].strip()
+                    break
         rc, out = run(["sysctl", "-n", "hw.physicalcpu"])
         info["cores_physical"] = int(out.strip()) if rc == 0 and out.strip().isdigit() else None
         info["apple_silicon"] = info["arch"] in ("arm64", "aarch64")
@@ -87,6 +93,13 @@ def detect_ram_gb() -> float:
         rc, out = run(["sysctl", "-n", "hw.memsize"])
         if rc == 0 and out.strip().isdigit():
             return round(int(out.strip()) / 1024**3, 1)
+        rc, out = run(["system_profiler", "SPHardwareDataType"])
+        for line in out.splitlines() if rc == 0 else ():
+            if line.strip().startswith("Memory:"):
+                value = line.split(":", 1)[1].strip().split()
+                if len(value) >= 2 and value[0].replace(".", "", 1).isdigit():
+                    amount = float(value[0])
+                    return round(amount if value[1].upper() == "GB" else amount / 1024, 1)
     elif sys.platform.startswith("linux"):
         try:
             for line in pathlib.Path("/proc/meminfo").read_text().splitlines():
