@@ -1,47 +1,45 @@
-# Bonus B1 - Prebuilt vs source build
+# Bonus B1 - So sánh bản prebuilt và bản tự build
 
 Host `Darwin-arm64` · CPU `Apple M1`
-Vector extensions detected: NEON
-llama.cpp `b10488` both sides · `threads=8` ·
-**both pinned to `ngl=0`** so this isolates the compiler ·
-metric `tg128`, 3 repetitions
+Tập lệnh vector phát hiện được: NEON
+Hai phía cùng dùng llama.cpp `b10488` · `threads=8` ·
+**cùng cố định `ngl=0`** để cô lập ảnh hưởng compiler ·
+metric `tg128`, lặp 3 lần
 
-| Binary | Built for | tg128 (tok/s) | Relative |
+| Binary | Mục tiêu build | tg128 (tok/s) | Tương đối |
 |:--|--:|--:|--:|
-| prebuilt release | runtime CPU dispatch | 26.4 | 1.00x |
-| your source build | this CPU (`-DGGML_NATIVE=ON`) | 23.8 | 0.90x |
+| bản phát hành prebuilt | CPU dispatch runtime | 26.4 | 1.00x |
+| bản tự build | CPU hiện tại (`-DGGML_NATIVE=ON`) | 23.8 | 0.90x |
 
-On this machine, the prebuilt binary is **1.11x faster**.
+Trên máy này, binary prebuilt **nhanh hơn 1.11x**.
 
-before: 26.4 tok/s (prebuilt release)
-after:  23.8 tok/s (source build, -DGGML_NATIVE=ON)
-speedup: 0.90x
+trước:   26.4 tok/s (bản phát hành prebuilt)
+sau:     23.8 tok/s (bản tự build, -DGGML_NATIVE=ON)
+tăng tốc: 0.90x
 
-Same source revision, same model, same backend, same `-ngl` -- the only difference
-is what the compiler was allowed to assume about the CPU.
+Cùng revision mã nguồn, model, backend và `-ngl`; khác biệt duy nhất là những giả định
+compiler được phép dùng về CPU.
 
 
-### Separately: what GPU offload is worth on the same binary
+### Giá trị riêng của GPU offload trên cùng binary
 
 `tg128` on the source build at `-ngl 99` instead of `-ngl 0`:
 
-| Source build | tg128 (tok/s) | vs its own CPU run |
+| Bản tự build | tg128 (tok/s) | So với lần chạy CPU |
 |:--|--:|--:|
 | `-ngl 0` (CPU) | 23.8 | 1.00x |
-| `-ngl 99` (offloaded to MTL0: Apple M1 (10922 MiB, 10922 MiB free)) | 56.9 | 2.39x |
+| `-ngl 99` (offload sang MTL0: Apple M1) | 56.9 | 2.39x |
 
-This number is **not** part of the B1 comparison above -- it is a different knob.
-Reporting it separately is the point: a compiler flag and an accelerator are not
-interchangeable explanations for a speedup.
+Con số này **không** thuộc phép so sánh B1 phía trên vì đây là knob khác. Tách riêng kết
+quả giúp tránh đánh đồng ảnh hưởng của compiler flag với ảnh hưởng của bộ tăng tốc.
 
 
-## Explanation
+## Giải thích
 
-The native build did not win: it was 10% slower despite enabling M1-specific NEON,
-dot-product and FP16 vector arithmetic. The prebuilt arm64 release already uses an
-optimized runtime dispatch path and Accelerate, so `-mcpu=native` adds little to a
-memory-heavy token-generation workload; compiler/code-layout differences and normal
-thermal variation can outweigh that small instruction-level opportunity. The separate
-Metal result is much larger (2.39x) because offload changes the execution resource and
-memory-parallelism regime, not merely compiler assumptions. This is why the GPU number
-must not be presented as the B1 compiler speedup.
+Bản native không thắng mà chậm hơn 10% dù bật NEON, dot-product và FP16 vector arithmetic
+riêng cho M1. Bản arm64 prebuilt đã dùng runtime dispatch tối ưu và Accelerate, nên
+`-mcpu=native` chỉ thêm ít lợi ích cho workload sinh token nặng về memory; khác biệt
+compiler, bố trí code và dao động nhiệt có thể lớn hơn lợi ích tập lệnh nhỏ đó. Kết quả
+Metal lớn hơn nhiều (2.39x) vì offload thay đổi tài nguyên thực thi và mức song song bộ
+nhớ, không chỉ thay đổi giả định của compiler. Vì vậy không được trình bày số GPU như
+speedup compiler của B1.

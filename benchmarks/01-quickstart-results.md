@@ -1,22 +1,22 @@
-# 01 - Measure: latency baseline
+# 01 - Đo latency cơ sở
 
 Model `Qwen3.5 0.8B` · host `Darwin-arm64` · llama.cpp `b10488`
-Settings: `threads=8` `ngl=99` `ctx=2048`
-`max_tokens=64` · warm-up discarded
-Completed requests: `Q4_K_M` 10/10 · `UD-Q2_K_XL` 10/10
+Thiết lập: `threads=8` `ngl=99` `ctx=2048`
+`max_tokens=64` · đã loại lượt khởi động
+Request hoàn tất: `Q4_K_M` 10/10 · `UD-Q2_K_XL` 10/10
 
-| Quantization | Size (GB) | Load (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode (tok/s) |
+| Quantization | Kích thước (GB) | Tải model (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode (tok/s) |
 |:--|--:|--:|--:|--:|--:|--:|
-| Q4_K_M | 0.50 | 3139 | 108 / 235 | 30.8 / 37.2 | 1375 / 2467 / 2467 | 32.5 |
-| UD-Q2_K_XL | 0.39 | 2038 | 79 / 90 | 16.6 / 19.1 | 1131 / 1289 / 1289 | 60.4 |
+| Q4_K_M | 0.50 | 2076 | 82 / 91 | 16.1 / 18.1 | 1050 / 1226 / 1226 | 62.1 |
+| UD-Q2_K_XL | 0.39 | 1017 | 78 / 110 | 14.7 / 17.8 | 1002 / 1218 / 1218 | 67.9 |
 
-- **TTFT** = prefill. Short prompts keep it small; long-context RAG is where it explodes.
-- **TPOT** = per-output-token decode cost, bounded by memory bandwidth. `decode tok/s = 1000 / TPOT_p50`.
-- `UD-Q2_K_XL` decodes **1.86x faster** than `Q4_K_M` here, for 0.11 GB less on disk.
+- **TTFT** = prefill. Prompt ngắn giữ giá trị này thấp; RAG context dài làm nó tăng mạnh.
+- **TPOT** = chi phí decode cho mỗi output token, bị giới hạn bởi memory bandwidth. `decode tok/s = 1000 / TPOT_p50`.
+- `UD-Q2_K_XL` decode **nhanh hơn 1.09x** so với `Q4_K_M`, đồng thời nhỏ hơn 0.11 GB.
 
-## Observation
+## Nhận xét
 
-Q2 reduced size by 22%, improved median decode throughput 1.86x, and lowered TTFT P50
-from 108 ms to 79 ms. It is not worth deploying for this model: on the same Goodput@SLO
-prompt, Q4 connected goodput to SLO compliance, while Q2 incorrectly described it as a
-list-oriented output format. I would retain Q4 because the quality loss outweighs 0.11 GB.
+Q2 giảm 22% kích thước nhưng throughput decode trung vị chỉ tăng 1.09x; TTFT P95 còn
+xấu hơn (110 ms so với 91 ms). Q2 không đáng triển khai trong trường hợp này: với cùng
+prompt Goodput@SLO, Q4 liên hệ đúng goodput với việc đáp ứng SLO, còn Q2 mô tả sai thành
+định dạng output dạng danh sách. Tôi chọn Q4 vì suy giảm chất lượng lớn hơn lợi ích 0.11 GB.

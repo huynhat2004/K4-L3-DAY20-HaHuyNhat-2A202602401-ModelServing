@@ -1,19 +1,19 @@
-# 03 - Integrate: RAG pipeline run
+# 03 - Tích hợp: chạy pipeline RAG
 
 Host `Darwin-arm64` · llama.cpp `b10488` ·
-retrieval backend: **keyword overlap** · 3 queries
+retrieval backend: **khớp từ khóa** · 3 truy vấn
 
-| Query | Contexts retrieved | embed (ms) | retrieve (ms) | llm (ms) | total (ms) |
+| Truy vấn | Context truy xuất | embed (ms) | retrieve (ms) | llm (ms) | tổng (ms) |
 |:--|--:|--:|--:|--:|--:|
 | Why is goodput more useful than raw throughp... | goodput, paged, radix | 0.0 | 0.0 | 2587.1 | 2587.2 |
 | What problem does PagedAttention actually so... | paged, radix, disagg | 0.0 | 0.0 | 1797.4 | 1797.5 |
 | When does splitting prefill and decode help?... | disagg, radix, batching | 0.0 | 0.1 | 2003.0 | 2003.1 |
 
-Mean per stage (ms): embed **0.0** · retrieve **0.0** ·
-llm **2129.2** · total **2129.3**
-Dominant stage: **llm** (100% of total)
+Trung bình mỗi giai đoạn (ms): embed **0.0** · retrieve **0.0** ·
+llm **2129.2** · tổng **2129.3**
+Giai đoạn chi phối: **llm** (100% tổng thời gian)
 
-## Answers returned
+## Câu trả lời nhận được
 
 **Why is goodput more useful than raw throughput?**
 
@@ -37,16 +37,15 @@ By using non-contiguous pages, the model avoids the wasted space that would exis
 This is because the context explicitly states that "Disaggregated serving splits prefill and decode onto separate pools because prefill is compute-bound and decode is memory-bandwidth-bound." By having them run in separate pools, the system avoids the overhead 
 
 
-## Which N16-N19 pieces are real
+## Thành phần N16-N19 nào là thật
 
-- N16 Cloud/IaC: stub (local process only).
-- N17 Data pipeline: stub (in-memory sample documents).
-- N18 Lakehouse: stub (no external table or lakehouse).
-- N19 Vector + features: stub (keyword overlap fallback, no embedding service).
-- N20 Serving: real (`llama-server` through `/v1/chat/completions`).
+- N16 Cloud/IaC: mô phỏng (chỉ có tiến trình local).
+- N17 Data pipeline: mô phỏng (tài liệu mẫu trong bộ nhớ).
+- N18 Lakehouse: mô phỏng (không có bảng hoặc lakehouse bên ngoài).
+- N19 Vector + features: mô phỏng (khớp từ khóa, không có embedding service).
+- N20 Serving: thật (`llama-server` qua `/v1/chat/completions`).
 
-The LLM accounts for 2129.2 ms, effectively 100% of mean latency, as expected because
-the stub retrieval is in-memory. To halve end-to-end latency I would target generation:
-cap output length, preserve shared prompt prefixes for cache reuse, and test a smaller
-quantization only behind a quality gate. Optimizing retrieval cannot save meaningful time
-in this measured pipeline.
+LLM chiếm 2129.2 ms, gần 100% latency trung bình, đúng kỳ vọng vì retrieval mô phỏng chạy
+trong bộ nhớ. Để giảm một nửa latency end-to-end, tôi sẽ giới hạn độ dài output, giữ prefix
+prompt dùng chung để tái sử dụng cache và chỉ thử quantization nhỏ hơn sau quality gate.
+Tối ưu retrieval không thể tiết kiệm đáng kể trong pipeline đã đo.

@@ -1,38 +1,41 @@
-# 02 - Serve: load test + saturation reading
+# 02 - Serving: load test và phân tích bão hòa
 
 Host `Darwin-arm64` · llama.cpp `b10488` ·
 `--parallel 4` · `ctx=2048` · `threads=8` ·
 `ngl=99`
 
-| Users | Reqs | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Eff. concurrency | Failures |
+| Người dùng | Request | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Concurrency hiệu dụng | Tỷ lệ lỗi |
 |:--|--:|--:|--:|--:|--:|--:|--:|
 | 10 | 71 | 1.29 | 6300 | 10000 | 13000 | 8.5 | 0.0% |
 | 50 | 83 | 1.42 | 29000 | 36000 | 40000 | 34.8 | 0.0% |
 
-*Effective concurrency = RPS x average latency (Little's Law) -- how many requests were
-really in flight, regardless of how many users locust simulated. It counts queued requests
-too, so the occupancy/slot ratio can legitimately exceed 1.0; it is occupancy, not
-utilisation. For true slot utilisation use the server's own gauges (`make metrics`).*
+*Concurrency hiệu dụng = RPS x latency trung bình (Little's Law), tức số request thực sự
+in-flight bất kể Locust mô phỏng bao nhiêu người dùng. Chỉ số này gồm cả request trong hàng
+đợi nên tỷ lệ occupancy/slot có thể lớn hơn 1.0. Để đo mức sử dụng slot thật, dùng gauge
+của server (`make metrics`).*
 
-## What these two runs say
+## Hai lần chạy cho thấy điều gì
 
-| Going from 10 to 50 users | |
+| Khi tăng từ 10 lên 50 người dùng | |
 |:--|--:|
-| Offered load | 5x |
-| Throughput actually delivered | **1.10x** (22% of linear) |
-| P95 latency | **3.60x** |
-| Effective concurrency at 50 users | 34.8 vs `--parallel 4` slots (occupancy/slot ratio 8.70) |
+| Tải đưa vào | 5x |
+| Throughput thực nhận | **1.10x** (22% mức tuyến tính) |
+| Latency P95 | **3.60x** |
+| Concurrency hiệu dụng ở 50 người dùng | 34.8 so với `--parallel 4` slot (tỷ lệ occupancy/slot 8.70) |
 
-**Saturated.** Throughput delivered only 1.10x for 5x the offered load, and effective concurrency (34.8) is at or above all 4 decode slots. Saturation sets in somewhere at or below 50 users; the load you added beyond that point became queue time rather than throughput.
+**Đã bão hòa.** Throughput chỉ tăng 1.10x khi tải đưa vào tăng 5x, còn concurrency hiệu
+dụng 34.8 vượt xa 4 decode slot. Hệ thống bão hòa ở đâu đó không quá 50 người dùng; tải
+thêm sau điểm đó chủ yếu trở thành thời gian chờ thay vì throughput.
 
-Throughput moved 1.10x while P95 moved 3.60x. That gap is the goodput argument: past saturation you buy throughput by spending latency, and if your SLO is a P95 target then the requests you added are no longer being served within it. (This lab does not fix an SLO number for you -- pick one in your write-up and state how much goodput you keep at it.)
+Throughput tăng 1.10x trong khi P95 tăng 3.60x. Khoảng cách này là lập luận về goodput:
+sau bão hòa, throughput tăng rất ít nhưng phải đánh đổi nhiều latency; nếu SLO đặt theo
+P95 thì các request thêm vào không còn được phục vụ trong giới hạn đó.
 
-## Reading
+## Phân tích
 
-The server is already near saturation at 10 users and is clearly saturated by 50:
-offered load rose 5x, but RPS rose only 1.10x while P95 grew 3.60x to 36 s. At 50 users,
-34.8 requests were effectively in flight against four decode slots; metrics showed
-3.93/4 busy slots and 46 deferred requests, so most added latency is queueing. For a
-10 s P95 SLO, I would first increase `--parallel` while memory permits, then remeasure;
-it directly adds schedulable slots, whereas more CPU threads cannot relieve Metal-bound
-decode and were slower in the thread sweep.
+Server đã gần bão hòa ở 10 người dùng và bão hòa rõ tại 50: tải đưa vào tăng 5x nhưng
+RPS chỉ tăng 1.10x, còn P95 tăng 3.60x lên 36 giây. Tại 50 người dùng, 34.8 request
+in-flight hiệu dụng tranh bốn decode slot; metrics cho thấy 3.93/4 slot bận và 46 request
+bị hoãn, nên phần lớn latency tăng thêm là queueing. Với SLO P95 10 giây, tôi sẽ tăng
+`--parallel` trước nếu bộ nhớ cho phép rồi đo lại; thêm CPU thread không giảm decode bị
+giới hạn bởi Metal và còn chậm hơn trong thread sweep.

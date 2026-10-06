@@ -1,9 +1,9 @@
-# Bonus - Context-length sweep (prefill cost)
+# Bonus - Khảo sát độ dài context (chi phí prefill)
 
 Host `Darwin-arm64` · llama.cpp `b10488` ·
 `threads=8` `ngl=99` · RAM 16.0 GB
 
-| Prompt tokens | Prefill (tok/s) | TTFT contribution (ms) | vs linear scaling |
+| Token trong prompt | Prefill (tok/s) | Phần TTFT (ms) | So với tăng tuyến tính |
 |:--|--:|--:|--:|
 | 256 | 1092.1 | 234.4 | 1.00x |
 | 1024 | 1122.4 | 912.3 | 0.97x |
@@ -11,19 +11,17 @@ Host `Darwin-arm64` · llama.cpp `b10488` ·
 | 4096 | 811.3 | 5048.6 | 1.35x |
 | 8192 | 972.4 | 8424.3 | 1.12x |
 
-At 8192 tokens, prefill costs **8424 ms** --
-1.12x what linear scaling from the smallest point would predict. That excess
-is attention's O(N^2) term becoming visible, and every millisecond of it lands in TTFT
-before the user sees a single token.
+Tại 8192 token, prefill tốn **8424 ms**, bằng 1.12x dự đoán tuyến tính từ điểm nhỏ nhất.
+Phần vượt thêm cho thấy thành phần O(N^2) của attention bắt đầu xuất hiện, và toàn bộ thời
+gian này nằm trong TTFT trước khi người dùng thấy token đầu tiên.
 
-Either way, this is the number to remember when someone proposes stuffing more retrieved
-context into a RAG prompt "because the context window allows it". Prefill is paid in full,
-on every request, before the first token appears.
+Đây là con số cần nhớ khi muốn đưa thêm context truy xuất vào prompt RAG chỉ vì context
+window cho phép. Mỗi request phải trả toàn bộ chi phí prefill trước khi token đầu xuất hiện.
 
-## Finding
+## Kết luận
 
-Prefill stays close to linear through 2048 tokens (1857 ms), then bends sharply at 4096:
-5049 ms is 1.35x the linear prediction and already exceeds the complete 2129 ms mean of
-the short-context RAG run. At 8192 tokens, users wait 8424 ms before decode. I would cap
-retrieved context near 2048 tokens, rank chunks before prompt construction, and require
-measured relevance gains before accepting the 2.7x TTFT jump from 2048 to 4096 tokens.
+Prefill gần tuyến tính tới 2048 token (1857 ms), sau đó bẻ cong rõ tại 4096: 5049 ms bằng
+1.35x dự đoán tuyến tính và đã vượt tổng latency trung bình 2129 ms của RAG context ngắn.
+Tại 8192 token, người dùng chờ 8424 ms trước decode. Tôi sẽ giới hạn context truy xuất gần
+2048 token, xếp hạng chunk trước khi tạo prompt và chỉ chấp nhận TTFT tăng 2.7x từ 2048 lên
+4096 token khi đo được mức tăng relevance tương xứng.

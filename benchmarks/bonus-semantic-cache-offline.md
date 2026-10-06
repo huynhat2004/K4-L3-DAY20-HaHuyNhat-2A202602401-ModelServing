@@ -1,14 +1,14 @@
-# Bonus B5/C8 - Semantic cache regime (offline)
+# Bonus B5/C8 - Chế độ semantic cache (offline)
 
-The supplied offline demo used bag-of-words vectors and a simulated 250 ms inference
-cost. At threshold 0.80 it produced 3/8 hits (38%), skipped three model calls, and saved
-about 750 ms of simulated decode. The threshold sweep from 0.70 to 0.95 stayed flat at
-3/8 because similarities from this stub were effectively 0 or 1.
+Demo offline dùng vector bag-of-words và mô phỏng inference tốn 250 ms. Tại threshold
+0.80, cache hit 3/8 lần (38%), bỏ qua ba lần gọi model và tiết kiệm khoảng 750 ms decode
+mô phỏng. Sweep threshold từ 0.70 tới 0.95 giữ nguyên 3/8 vì similarity của phần mô phỏng
+này gần như chỉ nhận 0 hoặc 1.
 
-This run validates the serving control flow, not semantic quality. A cache hit bypasses
-prefill and decode entirely, unlike prefix/KV caching, but the stub cannot expose realistic
-false-hit and false-miss boundaries. A production experiment needs a sentence encoder
-such as BGE-M3 or Qwen3-Embedding, tenant-salted keys, and a labeled paraphrase/non-match
-set. Shared unsalted caches can also leak cross-tenant information through returned content
-or timing. The flat curve is evidence of the stub's limitation, not evidence that threshold
-selection is unimportant.
+Lần chạy này kiểm chứng control flow serving, không kiểm chứng chất lượng ngữ nghĩa. Một
+cache hit bỏ qua hoàn toàn prefill và decode, khác prefix/KV cache, nhưng phần mô phỏng
+không thể hiện ranh giới false hit và false miss thực tế. Thí nghiệm production cần sentence
+encoder như BGE-M3 hoặc Qwen3-Embedding, key có salt theo tenant và tập paraphrase/non-match
+đã gán nhãn. Cache dùng chung không có salt còn có thể rò rỉ thông tin giữa tenant qua nội
+dung hoặc timing. Đường cong phẳng là bằng chứng về giới hạn của stub, không chứng minh
+việc chọn threshold là không quan trọng.

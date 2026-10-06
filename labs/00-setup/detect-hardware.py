@@ -10,6 +10,7 @@ import json
 import os
 import pathlib
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -36,7 +37,10 @@ def detect_cpu() -> dict:
             for line in out.splitlines() if rc == 0 else ():
                 if line.strip().startswith("Chip:"):
                     info["model"] = line.split(":", 1)[1].strip()
-                    break
+                match = re.search(r"Total Number of Cores:\s*\d+\s*\((\d+) performance and (\d+) efficiency\)", line)
+                if match:
+                    info["cores_performance"] = int(match.group(1))
+                    info["cores_efficiency"] = int(match.group(2))
         rc, out = run(["sysctl", "-n", "hw.physicalcpu"])
         info["cores_physical"] = int(out.strip()) if rc == 0 and out.strip().isdigit() else None
         info["apple_silicon"] = info["arch"] in ("arm64", "aarch64")
@@ -164,6 +168,16 @@ def pick_model(ram: float) -> tuple[str, str]:
     default = labkit.MODELS[labkit.DEFAULT_MODEL]
     if (os.environ.get("LAB_MODEL") or "").strip():
         return labkit.model_key(), "chosen with LAB_MODEL"
+    # Once setup has selected a model, keep probe output consistent with the model
+    # that subsequent benchmarks and serving commands actually use.
+    active = labkit.active_json()
+    if active.exists():
+        try:
+            key = json.loads(active.read_text()).get("model_key")
+            if key in labkit.MODELS:
+                return key, "already selected in models/active.json"
+        except (OSError, ValueError):
+            pass
     if ram >= default["min_ram_gb"]:
         return labkit.DEFAULT_MODEL, "enough RAM for the default model"
     return labkit.SMALL_MODEL, f"{ram} GB RAM is under the {default['min_ram_gb']} GB the default model wants"
@@ -214,6 +228,8 @@ def main() -> int:
     print(f"  Platform : {platform.system()} {platform.release()} ({platform.machine()})")
     print(f"  CPU      : {cpu['model']}")
     print(f"             {cpu['cores_physical']} physical · {cpu['cores_logical']} logical cores")
+    if cpu.get("cores_performance") is not None:
+        print(f"             {cpu['cores_performance']} performance + {cpu['cores_efficiency']} efficiency cores")
     exts = [n for n, k in (("AVX-512", "avx512"), ("AVX2", "avx2"), ("NEON", "neon")) if cpu.get(k)]
     if exts:
         print(f"             extensions: {', '.join(exts)}")
